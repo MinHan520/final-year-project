@@ -1,0 +1,5 @@
+{
+  "name": "SynthID Verifier",
+  "description": "Verify AI-generated content using SynthID-inspired detection and Gemini vision analysis.",
+  "requestFramePermissions": []
+}
