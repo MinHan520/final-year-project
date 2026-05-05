@@ -17,8 +17,16 @@ class AIDEDetectorBackend:
     in VRAM for low-latency, real-time inference requests.
     """
     def __init__(self, checkpoint_path: str, device: str = None):
-        # Dynamically assign hardware acceleration
-        self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
+        # Dynamically assign hardware acceleration (CUDA for Nvidia, MPS for Apple Silicon, CPU as fallback)
+        if device:
+            self.device = device
+        elif torch.cuda.is_available():
+            self.device = "cuda"
+        elif torch.backends.mps.is_available():
+            self.device = "mps"
+        else:
+            self.device = "cpu"
+        
         logger.info(f"Initializing AIDE Backend on device: {self.device}")
         
         # Instantiate the model architecture utilizing local pre-trained backbones
@@ -96,10 +104,72 @@ class AIDEDetectorBackend:
                 probability = probs[0, 1].item()
                 
             return probability
-            
+
         except Exception as e:
             logger.error(f"Inference failed on {image_path}: {str(e)}")
             return -1.0
+
+    def _predict_from_numpy(self, images_np):
+        """Prediction wrapper for SHAP. Takes (N, H, W, 3) uint8 numpy array, returns (N, 2) probabilities."""
+        import numpy as np
+        results = []
+        for i in range(images_np.shape[0]):
+            img = Image.fromarray(images_np[i].astype(np.uint8))
+            tensor_init = self.transform_before(img).to(self.device)
+
+            with torch.no_grad():
+                x_minmin, x_maxmax, x_minmin1, x_maxmax1 = self.dct_module(tensor_init)
+
+                x_0 = self.transform_final(tensor_init)
+                x_minmin = self.transform_final(x_minmin)
+                x_maxmax = self.transform_final(x_maxmax)
+                x_minmin1 = self.transform_final(x_minmin1)
+                x_maxmax1 = self.transform_final(x_maxmax1)
+
+                input_tensor = torch.stack([x_minmin, x_maxmax, x_minmin1, x_maxmax1, x_0], dim=0).unsqueeze(0)
+                logits = self.model(input_tensor)
+                probs = torch.softmax(logits, dim=1)
+
+            results.append(probs[0].detach().cpu().numpy())
+        return np.array(results)
+
+    def generate_shap_explanation(self, image_path: str, max_evals: int = 200):
+        """Generate a SHAP heatmap showing which regions push the prediction toward AI-generated.
+
+        Uses shap.PartitionExplainer with superpixel masking (model-agnostic).
+        Returns a matplotlib Figure with the SHAP overlay, or None on failure.
+        """
+        import shap
+        import numpy as np
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        image = Image.open(image_path).convert("RGB").resize((256, 256), Image.BICUBIC)
+        image_np = np.array(image)  # (256, 256, 3) uint8
+
+        masker = shap.maskers.Image("inpaint_telea", image_np.shape)
+        explainer = shap.PartitionExplainer(self._predict_from_numpy, masker)
+
+        shap_values = explainer(
+            np.expand_dims(image_np, axis=0),
+            max_evals=max_evals,
+        )
+
+        # shap_values.values shape: (1, H, W, 3, 2) — take class 1 (AI-generated)
+        sv = shap_values.values[0, :, :, :, 1]  # (H, W, 3)
+        sv_gray = sv.mean(axis=2)  # (H, W)
+
+        fig, ax = plt.subplots(1, 1, figsize=(6, 6))
+        ax.imshow(image_np)
+        im = ax.imshow(sv_gray, cmap="bwr", alpha=0.55,
+                       vmin=-np.abs(sv_gray).max(), vmax=np.abs(sv_gray).max())
+        cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label("SHAP value (red = AI, blue = Real)", fontsize=9)
+        ax.set_title("SHAP Explainability Heatmap", fontsize=12, fontweight="bold")
+        ax.axis("off")
+        plt.tight_layout()
+        return fig
 
 # === Agent Testing Block ===
 if __name__ == "__main__":
