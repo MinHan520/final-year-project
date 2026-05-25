@@ -36,16 +36,15 @@ const PIPELINE_STAGES = [
 export function About() {
   return (
     <div className="max-w-5xl mx-auto space-y-16 py-4">
-      {/* Hero */}
+
+      {/* ── Hero ─────────────────────────────────────── */}
       <header className="text-center space-y-4">
-        <p className="font-display text-xs tracking-[0.3em] text-primary uppercase">
-          About TruthLens
+        <p className="font-mono text-[10px] tracking-[0.3em] text-primary uppercase">
+          ▸ About TruthLens
         </p>
         <h1 className="font-display text-4xl md:text-5xl font-bold text-fg leading-tight">
           AI-Powered Deepfake&nbsp;
-          <span className="bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent">
-            Forensic Detection
-          </span>
+          <span className="text-gradient-futuristic">Forensic Detection</span>
         </h1>
         <p className="text-muted max-w-2xl mx-auto text-base leading-relaxed">
           TruthLens is a multi-agent forensic system that combines deep learning,
@@ -55,26 +54,30 @@ export function About() {
         </p>
       </header>
 
-      {/* Mission */}
-      <section className="grid md:grid-cols-2 gap-8">
-        <div className="rounded-card border border-border bg-card p-6 space-y-3">
-          <div className="flex items-center gap-2">
+      {/* ── Mission ──────────────────────────────────── */}
+      <section className="grid md:grid-cols-2 gap-6">
+        {/* Our Mission */}
+        <div className="relative rounded-2xl bg-slate-50 dark:bg-slate-900/50 p-6 space-y-3 overflow-hidden group transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.05)] hover:shadow-[0_0_35px_rgba(168,85,247,0.22)] hover:-translate-y-0.5">
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/0 to-pink-500/0 group-hover:from-purple-500/5 group-hover:to-pink-500/5 transition-all duration-300 pointer-events-none" />
+          <div className="relative flex items-center gap-2">
             <Users className="size-5 text-primary" />
             <h2 className="font-display text-lg font-semibold text-fg">Our Mission</h2>
           </div>
-          <p className="text-sm text-muted leading-relaxed">
+          <p className="relative text-sm text-muted leading-relaxed">
             Empower everyday people, journalists, and digital forensics professionals
             with transparent, interpretable tools to detect AI-generated media —
             helping build trust in the digital information ecosystem.
           </p>
         </div>
 
-        <div className="rounded-card border border-border bg-card p-6 space-y-3">
-          <div className="flex items-center gap-2">
+        {/* Why It Matters */}
+        <div className="relative rounded-2xl bg-slate-50 dark:bg-slate-900/50 p-6 space-y-3 overflow-hidden group transition-all duration-300 shadow-[0_0_20px_rgba(236,72,153,0.05)] hover:shadow-[0_0_35px_rgba(236,72,153,0.20)] hover:-translate-y-0.5">
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-pink-500/0 to-purple-500/0 group-hover:from-pink-500/5 group-hover:to-purple-500/5 transition-all duration-300 pointer-events-none" />
+          <div className="relative flex items-center gap-2">
             <Shield className="size-5 text-success" />
             <h2 className="font-display text-lg font-semibold text-fg">Why It Matters</h2>
           </div>
-          <p className="text-sm text-muted leading-relaxed">
+          <p className="relative text-sm text-muted leading-relaxed">
             With the rapid advancement of generative AI, distinguishing real from
             synthetic media is critical. No single detection method is enough —
             TruthLens combines six complementary forensic stages to provide
@@ -83,10 +86,10 @@ export function About() {
         </div>
       </section>
 
-      {/* Pipeline */}
+      {/* ── Pipeline ─────────────────────────────────── */}
       <section className="space-y-6">
         <div className="text-center">
-          <p className="font-display text-xs tracking-[0.25em] text-muted uppercase">
+          <p className="font-mono text-[10px] tracking-[0.25em] text-muted uppercase">
             Forensic Pipeline
           </p>
           <h2 className="font-display text-2xl font-semibold text-fg mt-1">
@@ -98,13 +101,19 @@ export function About() {
           {PIPELINE_STAGES.map(({ icon: Icon, title, desc }, i) => (
             <div
               key={title}
-              className="group relative rounded-card border border-border bg-card/60 hover:bg-card p-5 transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(99,102,241,0.08)]"
+              className="agent-card animate-agent-breathe group rounded-2xl bg-card/60 hover:bg-card p-5 transition-all duration-300 shadow-[0_0_15px_rgba(168,85,247,0.05)] hover:shadow-[0_0_40px_rgba(168,85,247,0.22)] hover:-translate-y-1"
+              style={{ animationDelay: `${i * 0.5}s` }}
+              onMouseMove={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                e.currentTarget.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+                e.currentTarget.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
+              }}
             >
               <div className="flex items-center gap-3 mb-3">
-                <span className="size-8 grid place-items-center rounded-md bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                <span className="size-8 rounded-xl grid place-items-center bg-primary/10 text-primary group-hover:bg-primary/20 group-hover:shadow-[0_0_12px_rgba(168,85,247,0.45)] transition-all">
                   <Icon className="size-4" />
                 </span>
-                <span className="text-xs font-mono text-muted">Stage {i + 1}</span>
+                <span className="text-xs font-mono text-muted tracking-wider">STAGE {i + 1}</span>
               </div>
               <h3 className="font-display text-sm font-semibold text-fg mb-1">{title}</h3>
               <p className="text-xs text-muted leading-relaxed">{desc}</p>
@@ -113,10 +122,11 @@ export function About() {
         </div>
       </section>
 
-      {/* Tech */}
-      <section className="rounded-card border border-border bg-card/40 p-8 text-center space-y-4">
+      {/* ── Tech Stack ───────────────────────────────── */}
+      <section className="rounded-3xl bg-gradient-to-br from-purple-50/70 to-pink-50/70 dark:from-purple-950/20 dark:to-pink-950/20 p-8 text-center space-y-4">
+        <p className="font-mono text-[10px] tracking-[0.25em] text-muted uppercase">Technology Stack</p>
         <h2 className="font-display text-lg font-semibold text-fg">Built With</h2>
-        <div className="flex flex-wrap justify-center gap-3 text-xs text-muted">
+        <div className="flex flex-wrap justify-center gap-2 text-xs">
           {[
             'React 19', 'TypeScript', 'Vite', 'Tailwind CSS v4',
             'FastAPI', 'PyTorch', 'OpenCV', 'Google Gemini',
@@ -124,13 +134,14 @@ export function About() {
           ].map((t) => (
             <span
               key={t}
-              className="px-3 py-1.5 rounded-full border border-border bg-bg-elevated hover:border-primary/30 transition-colors"
+              className="px-4 py-1.5 rounded-full bg-white dark:bg-slate-800 shadow-sm hover:shadow-[0_0_15px_rgba(168,85,247,0.35)] font-mono text-muted hover:text-fg transition-all cursor-default"
             >
               {t}
             </span>
           ))}
         </div>
       </section>
+
     </div>
   );
 }

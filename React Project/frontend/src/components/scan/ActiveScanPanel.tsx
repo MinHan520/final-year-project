@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useScanStream } from '../../hooks/useScanStream';
 import { StageRow } from './StageRow';
 import { RiskScoreCard } from './RiskScoreCard';
@@ -43,15 +43,23 @@ function ConflictBanner({ conflict }: { conflict: ConflictResult }) {
 export function ActiveScanPanel({ scanId, onComplete }: ActiveScanPanelProps) {
   const { stages, status, error } = useScanStream(scanId);
   const [conflictResolved, setConflictResolved] = useState(false);
+  const hasCompletedRef = useRef(false);
+
+  // Reset the guard when the scanId changes (new scan)
+  useEffect(() => {
+    hasCompletedRef.current = false;
+  }, [scanId]);
 
   useEffect(() => {
-    if (status === 'complete') {
-      // Notify the top header bell to glow + chime
+    if (status === 'complete' && !hasCompletedRef.current) {
+      hasCompletedRef.current = true;
+
+      // Notify the top header bell to glow + chime (fires exactly once)
       window.dispatchEvent(new CustomEvent('scan-completed', { detail: { scanId } }));
 
+      // Notify the parent (Dashboard) immediately — let Dashboard handle the delay
       if (onComplete) {
-        const timer = setTimeout(() => onComplete(scanId), 1500);
-        return () => clearTimeout(timer);
+        onComplete(scanId);
       }
     }
   }, [status, scanId, onComplete]);
@@ -80,8 +88,8 @@ export function ActiveScanPanel({ scanId, onComplete }: ActiveScanPanelProps) {
     conflictResult?.action_required === 'human_review' && !conflictResolved;
 
   return (
-    <div className="rounded-card border border-border bg-card overflow-hidden mt-6">
-      <div className="p-4 border-b border-border bg-card/80 flex items-center justify-between">
+    <div className="rounded-2xl bg-card overflow-hidden mt-6 shadow-sm">
+      <div className="p-4 bg-card/80 flex items-center justify-between">
         <div>
           <h2 className="font-display font-medium text-fg">Live Analysis</h2>
           <div className="text-xs text-muted mt-1 uppercase tracking-wider">
@@ -110,7 +118,7 @@ export function ActiveScanPanel({ scanId, onComplete }: ActiveScanPanelProps) {
         </div>
       )}
 
-      <div className="divide-y divide-border">
+      <div className="flex flex-col gap-2 p-2">
         <StageRow
           label="Object Classification"
           state={stages.object_classification?.state || 'pending'}

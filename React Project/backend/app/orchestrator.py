@@ -23,6 +23,7 @@ Design choices:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Any, Optional
@@ -106,6 +107,13 @@ async def run_scan(
     media_type: str = "image",
 ) -> None:
     """Top-level orchestrator. Runs every agent, persists final summary."""
+    logger.info(
+        "\n" + "=" * 60 +
+        "\n[Orchestrator] === STARTING NEW ANALYSIS WORKFLOW ==="
+        "\n[Orchestrator] scan_id: %s | file: %s | media_type: %s"
+        "\n" + "=" * 60,
+        scan_id, file_path.name, media_type,
+    )
     summary: dict[str, Any] = {"scan_id": scan_id}
     project_id = settings.gcp_project_id
     location = settings.gcp_location
@@ -114,6 +122,7 @@ async def run_scan(
         await asyncio.to_thread(store.update_status, scan_id, "running")
 
         # ── Stage 1: Object Classification ──────────────────────────────────
+        logger.info("\n[Orchestrator] Step 1/6: Object Classification started.")
         classification = await _run_stage(
             bus,
             scan_id,
@@ -126,8 +135,10 @@ async def run_scan(
         if classification is not None:
             summary["object_classification"] = classification.model_dump()
             detected_type = classification.media_type
+            logger.info("[Orchestrator] Step 1 complete. Detected media type: %s", detected_type)
         else:
             detected_type = media_type
+            logger.info("[Orchestrator] Step 1 failed/skipped. Using fallback media type: %s", detected_type)
 
         # ── Non-image short-circuit ──────────────────────────────────────────
         if detected_type != "image":
@@ -149,6 +160,7 @@ async def run_scan(
             return
 
         # ── Stage 2: AIDE Detection ──────────────────────────────────────────
+        logger.info("\n[Orchestrator] Step 2/6: AIDE Deep Learning Detection started.")
         if detector is None:
             err = "AIDE detector not loaded; set AIDE_CHECKPOINT_PATH in env."
             await bus.publish(scan_id, "stage_error", {"agent": "aide", "message": err})
@@ -167,8 +179,10 @@ async def run_scan(
         if aide is not None and aide.success:
             score = aide.score
             summary["aide"] = aide.model_dump()
+            logger.info("[Orchestrator] Step 2 complete. AIDE score: %.4f (%.1f%%)", score, score * 100)
 
         # ── Stage 3: Low Level Artifact Analysis ─────────────────────────────
+        logger.info("\n[Orchestrator] Step 3/6: OpenCV Low-Level Artifact Analysis started.")
         maps = await _run_stage(
             bus,
             scan_id,
@@ -199,8 +213,13 @@ async def run_scan(
             else OpenCVComments(noise="", edges="", compression="")
         )
         summary["opencv_commentary"] = opencv_comments.model_dump()
+        logger.info(
+            "[Orchestrator] Step 3 complete. OpenCV commentary:\n%s",
+            json.dumps(opencv_comments.model_dump(), indent=2),
+        )
 
         # ── Stage 4: SynthID Detection ───────────────────────────────────────
+        logger.info("\n[Orchestrator] Step 4/6: SynthID Watermark Detection started.")
         synthid_result: Optional[SynthIDResult] = await _run_stage(
             bus,
             scan_id,
@@ -216,8 +235,13 @@ async def run_scan(
             else SynthIDResult(is_ai=None, reasoning="SynthID stage skipped.")
         )
         summary["synthid"] = synthid.model_dump()
+        logger.info(
+            "[Orchestrator] Step 4 complete. SynthID result:\n%s",
+            json.dumps(synthid.model_dump(), indent=2),
+        )
 
         # ── Stage 5: Conflict Resolution ─────────────────────────────────────
+        logger.info("\n[Orchestrator] Step 5/6: Conflict Resolution started.")
         conflict: Optional[ConflictResult] = None
         if aide is not None and aide.success:
             opencv_anomalies = _detect_opencv_anomalies(opencv_comments)
@@ -280,6 +304,7 @@ async def run_scan(
                 summary["conflict"] = conflict.model_dump()
 
         # ── Stage 6: Final Verdict ────────────────────────────────────────────
+        logger.info("\n[Orchestrator] Step 6/6: Final Verdict (Gemini Evaluation) started.")
         if score is not None and project_id:
             eval_result = await _run_stage(
                 bus,
@@ -302,6 +327,21 @@ async def run_scan(
 
         # ── Persist + signal completion ──────────────────────────────────────
         risk_label = classify_risk(score) if score is not None else None
+        logger.info(
+            "\n" + "=" * 60 +
+            "\n[Orchestrator] === ANALYSIS COMPLETE ==="
+            "\n[Orchestrator] scan_id: %s | risk: %s | score: %s"
+            "\n[Orchestrator] Final Summary:\n%s"
+            "\n" + "=" * 60,
+            scan_id,
+            risk_label,
+            f"{score:.4f}" if score is not None else "N/A",
+            json.dumps(
+                {k: v for k, v in summary.items() if k != "opencv_maps"},
+                indent=2,
+                default=str,
+            ),
+        )
         await asyncio.to_thread(
             store.finalize,
             scan_id,

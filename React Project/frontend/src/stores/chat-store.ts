@@ -11,6 +11,7 @@ interface ChatState {
   close: () => void;
   bindScan: (scanId: string | null) => void;
   send: (message: string) => Promise<void>;
+  clearHistory: () => void;
   reset: () => void;
 }
 
@@ -25,6 +26,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   close: () => set({ isOpen: false }),
   
   bindScan: (scanId: string | null) => set({ boundScanId: scanId }),
+
+  clearHistory: () => set({ transcript: [] }),
 
   reset: () => set({ transcript: [], boundScanId: null }),
 

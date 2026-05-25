@@ -97,9 +97,10 @@ async def stream_scan_events(scan_id: str, request: Request) -> EventSourceRespo
     store = request.app.state.store
 
     async def event_source() -> AsyncIterator[dict[str, Any]]:
-        # If the bus has no live queue, the scan is either unknown or
-        # already finished. Replay terminal state so late joiners aren't
-        # left hanging.
+        # The bus holds history for active scans and for GRACE_SECONDS after
+        # completion, so has_active is the reliable signal for "still known."
+        # Only fall back to the DB when the bus has no record at all — meaning
+        # the scan finished long ago or was never started in this process.
         if not bus.has_active(scan_id):
             record = await asyncio.to_thread(store.get, scan_id)
             if record is None:
@@ -108,6 +109,8 @@ async def stream_scan_events(scan_id: str, request: Request) -> EventSourceRespo
                     "data": json.dumps({"message": "scan not found"}),
                 }
                 return
+            # Scan completed before the grace period expired or before this
+            # client connected — emit the terminal event from persisted state.
             event_name = "complete" if record["status"] == "complete" else "error"
             payload = {
                 "scan_id": scan_id,
@@ -118,6 +121,8 @@ async def stream_scan_events(scan_id: str, request: Request) -> EventSourceRespo
             yield {"event": event_name, "data": json.dumps(payload)}
             return
 
+        # subscribe() replays history first, so reconnecting clients see all
+        # previously emitted stage events before receiving new ones.
         async for event in bus.subscribe(scan_id):
             if await request.is_disconnected():
                 break

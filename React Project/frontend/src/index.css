@@ -1,50 +1,94 @@
 @import "tailwindcss";
 
+/* Tie the dark: variant to our manual data-theme attribute so the
+ * moon/sun toggle activates dark:* Tailwind classes (not just CSS vars). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* TruthLens design tokens.
- * Tailwind v4 picks up `@theme` variables and emits utility classes:
- *   bg-bg, bg-card, text-fg, text-muted, ring-primary, etc.
+ * Tailwind v4 picks up `@theme` variables and emits utility classes.
  */
 @theme {
-  --color-bg: #0f172a;
-  --color-bg-elevated: #131c31;
-  --color-card: #1e293b;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  --radius-card: 0.75rem;
+}
+
+/* Base theme: Dark (Deep Void) */
+:root, [data-theme="dark"] {
+  color-scheme: dark;
+  
+  --color-bg: #020617; /* Ultra-dark slate (bg-slate-950) */
+  --color-bg-elevated: #0b0f19;
+  --color-card: #0f172a; /* Slate-900 */
   --color-card-foreground: #f8fafc;
-  --color-border: #1f2a44;
-  --color-border-strong: #2c3a5e;
+  --color-border: #1e293b; /* Slate-800 */
+  --color-border-strong: #334155; /* Slate-700 */
 
   --color-fg: #f8fafc;
   --color-muted: #94a3b8;
   --color-muted-foreground: #64748b;
 
-  --color-primary: #6366f1;
-  --color-primary-hover: #4f46e5;
+  --color-primary: #c084fc; /* Deeper, intense neon purple (purple-400) */
+  --color-primary-hover: #a855f7;
   --color-primary-foreground: #ffffff;
 
   --color-success: #10b981;
   --color-success-foreground: #ffffff;
   --color-warning: #f59e0b;
   --color-warning-foreground: #ffffff;
-  --color-danger: #ef4444;
+  --color-danger: #FF2A2A; /* Crimson */
   --color-danger-foreground: #ffffff;
   --color-critical: #dc2626;
   --color-critical-foreground: #ffffff;
-
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
-  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui,
-    sans-serif;
-
-  --radius-card: 0.75rem;
 }
 
-/* Base styles. Single source of truth for body / scrollbar. */
+/* Light Theme */
+[data-theme="light"] {
+  color-scheme: light;
+  
+  --color-bg: #F8FAFC;
+  --color-bg-elevated: #F1F5F9;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #0f172a;
+  --color-border: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+
+  --color-fg: #0f172a;
+  --color-muted: #64748b;
+  --color-muted-foreground: #94a3b8;
+
+  --color-primary: #a855f7; /* Vibrant, modern purple (purple-500) */
+  --color-primary-hover: #9333ea;
+  --color-primary-foreground: #ffffff;
+
+  --color-success: #059669;
+  --color-success-foreground: #ffffff;
+  --color-warning: #d97706;
+  --color-warning-foreground: #ffffff;
+  --color-danger: #dc2626;
+  --color-danger-foreground: #ffffff;
+  --color-critical: #b91c1c;
+  --color-critical-foreground: #ffffff;
+}
+
+/* ─── Volumetric glow variables ─────────────────────────────────────── */
 :root {
-  color-scheme: dark;
+  --glow-1: rgba(168, 85,  247, 0.22); /* Vibrant purple */
+  --glow-2: rgba(236, 72,  153, 0.15); /* Hot pink / magenta */
+  --glow-3: rgba(34,  211, 238, 0.13); /* Electric cyan */
+  --glow-4: rgba(167, 139, 250, 0.11); /* Soft violet */
+}
+[data-theme="light"] {
+  --glow-1: rgba(147,  51, 234, 0.08);
+  --glow-2: rgba(219,  39, 119, 0.06);
+  --glow-3: rgba(6,   182, 212, 0.05);
+  --glow-4: rgba(99,  102, 241, 0.04);
 }
 
-html,
-body,
-#root {
+/* ─── Base ──────────────────────────────────────────────────────────── */
+html, body, #root {
   height: 100%;
   margin: 0;
   background-color: var(--color-bg);
@@ -54,32 +98,293 @@ body,
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle scrollbars over the dark backdrop. */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background-color: var(--color-border-strong);
-  border-radius: 999px;
-}
-::-webkit-scrollbar-track {
-  background-color: transparent;
-}
+/* ─── Scrollbars ────────────────────────────────────────────────────── */
+::-webkit-scrollbar              { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb        { background-color: var(--color-border-strong); border-radius: 999px; }
+::-webkit-scrollbar-track        { background-color: transparent; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   KEYFRAME ANIMATIONS
+══════════════════════════════════════════════════════════════════════ */
 
 /* Notification bell glow animation — triggered on scan completion. */
 @keyframes bell-glow-blink {
-  0%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 2px var(--color-primary));
-    color: var(--color-primary);
-  }
-  50% {
-    transform: scale(1.18);
-    filter: drop-shadow(0 0 14px var(--color-primary));
-    color: var(--color-fg);
-  }
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 2px  var(--color-primary)); color: var(--color-primary); }
+  50%       { transform: scale(1.18); filter: drop-shadow(0 0 14px var(--color-primary)); color: var(--color-fg); }
 }
-.animate-bell-glow {
-  animation: bell-glow-blink 1.2s infinite ease-in-out;
+.animate-bell-glow { animation: bell-glow-blink 1.2s infinite ease-in-out; }
+
+/* 1. Cryptographic Decode Glitch (Hero Title) */
+@keyframes glitch-decode {
+  0% { opacity: 0; filter: blur(4px); letter-spacing: -4px; }
+  20% { opacity: 1; filter: blur(0); letter-spacing: 4px; text-shadow: 2px 0 var(--color-primary), -2px 0 var(--color-danger); }
+  40% { text-shadow: -2px 0 var(--color-primary), 2px 0 var(--color-danger); }
+  60% { letter-spacing: 0; text-shadow: none; }
+  100% { opacity: 1; filter: blur(0); letter-spacing: normal; }
 }
+.animate-glitch-decode {
+  animation: glitch-decode 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* 2. Dropzone Laser Scan Line */
+@keyframes scan-line-sweep {
+  0% { top: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.animate-scan-line {
+  animation: scan-line-sweep 2s linear infinite;
+}
+
+/* 3. Agent Card Breathing Glow */
+@keyframes agent-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; border-color: var(--color-border); }
+  50% { box-shadow: 0 0 15px -5px var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 40%, transparent); }
+}
+.animate-agent-breathe {
+  animation: agent-breathe 4s ease-in-out infinite;
+}
+
+/* 4. Terminal Blinking Cursor */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.animate-blink {
+  animation: blink-cursor 1s step-end infinite;
+}
+
+/* Hero title neon flicker */
+@keyframes neon-flicker {
+  0%, 94%, 100% { opacity: 1;    }
+  95%            { opacity: 0.78; }
+  96.5%          { opacity: 1;    }
+  98%            { opacity: 0.85; }
+}
+.animate-neon-flicker { animation: neon-flicker 9s infinite; }
+
+/* Activity ticker message fade-in/out */
+@keyframes ticker-fade {
+  0%   { opacity: 0; transform: translateY(5px);  }
+  12%  { opacity: 1; transform: translateY(0);     }
+  85%  { opacity: 1; transform: translateY(0);     }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+.animate-ticker-fade { animation: ticker-fade 3.2s ease-in-out forwards; }
+
+/* Dropdown fade */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* Running-stage shimmer progress bar */
+@keyframes shimmer {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(250%); }
+}
+.animate-shimmer { animation: shimmer 1.8s ease-in-out infinite; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   AGENT CARD SPOTLIGHT (cursor-tracking radial gradient via CSS vars)
+══════════════════════════════════════════════════════════════════════ */
+.agent-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.agent-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 50%),
+    rgba(168, 85, 247, 0.08) 0%,
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.agent-card:hover::after { opacity: 1; }
+.agent-card:hover {
+  transform: translateY(-2px);
+}
+
+[data-theme="light"] .agent-card::after {
+  background: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 50%),
+    rgba(168, 85, 247, 0.05) 0%,
+    transparent 65%
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   TARGETING BRACKETS
+══════════════════════════════════════════════════════════════════════ */
+.target-brackets::before,
+.target-brackets::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--color-muted);
+  border-style: solid;
+  transition: all 0.2s ease;
+}
+.target-brackets::before {
+  top: 0; left: 0;
+  border-width: 2px 0 0 2px;
+}
+.target-brackets::after {
+  bottom: 0; right: 0;
+  border-width: 0 2px 2px 0;
+}
+.target-brackets > div::before,
+.target-brackets > div::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--color-muted);
+  border-style: solid;
+  transition: all 0.2s ease;
+}
+.target-brackets > div::before {
+  top: 0; right: 0;
+  border-width: 2px 2px 0 0;
+}
+.target-brackets > div::after {
+  bottom: 0; left: 0;
+  border-width: 0 0 2px 2px;
+}
+.target-brackets-active::before,
+.target-brackets-active::after,
+.target-brackets-active > div::before,
+.target-brackets-active > div::after {
+  border-color: var(--color-primary);
+  width: 28px;
+  height: 28px;
+  box-shadow: 0 0 10px var(--color-primary);
+}
+.target-brackets:hover::before,
+.target-brackets:hover::after,
+.target-brackets:hover > div::before,
+.target-brackets:hover > div::after {
+  border-color: var(--color-primary);
+  opacity: 0.9;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   BACKGROUND DECORATION SYSTEM
+══════════════════════════════════════════════════════════════════════ */
+
+/* Per-theme orb colours — consumed as var() in inline styles */
+:root {
+  --orb-cyan:    rgba(34,  211, 238, 0.22); /* Bright cyan */
+  --orb-crimson: rgba(236,  72, 153, 0.16); /* Hot pink (replaces dull crimson) */
+  --orb-purple:  rgba(168,  85, 247, 0.22); /* Vibrant purple */
+  --orb-violet:  rgba(244, 114, 182, 0.16); /* Pink-violet */
+}
+[data-theme="light"] {
+  --orb-cyan:    rgba(6,   182, 212, 0.08);
+  --orb-crimson: rgba(219,  39, 119, 0.05);
+  --orb-purple:  rgba(168,  85, 247, 0.09);
+  --orb-violet:  rgba(244, 114, 182, 0.06);
+}
+
+/* Dot-grid texture overlay */
+.bg-dot-grid {
+  background-image: radial-gradient(circle, rgba(99,102,241,0.22) 1.5px, transparent 1.5px);
+  background-size: 30px 30px;
+}
+[data-theme="light"] .bg-dot-grid {
+  background-image: radial-gradient(circle, rgba(79,70,229,0.09) 1px, transparent 1px);
+}
+
+/* Slow organic drifts — only transform/opacity, fully GPU-composited */
+@keyframes glow-drift-a {
+  0%,100% { transform: translate(  0px,   0px) scale(1);    }
+  33%      { transform: translate( 70px, -50px) scale(1.08); }
+  66%      { transform: translate(-30px,  30px) scale(0.93); }
+}
+@keyframes glow-drift-b {
+  0%,100% { transform: translate(  0px,  0px) scale(1);    }
+  40%      { transform: translate(-55px, 40px) scale(0.91); }
+  70%      { transform: translate( 25px,-30px) scale(1.06); }
+}
+@keyframes glow-drift-c {
+  0%,100% { transform: translate(  0px,  0px) scale(1);    }
+  50%      { transform: translate( 40px,-40px) scale(1.05); }
+}
+@keyframes glow-drift-d {
+  0%,100% { transform: translate(  0px,  0px) scale(1);    }
+  45%      { transform: translate(-60px, 55px) scale(0.90); }
+  75%      { transform: translate( 20px,-20px) scale(1.04); }
+}
+
+.animate-glow-a { animation: glow-drift-a 24s ease-in-out infinite; will-change: transform; }
+.animate-glow-b { animation: glow-drift-b 19s ease-in-out infinite; will-change: transform; }
+.animate-glow-c { animation: glow-drift-c 28s ease-in-out infinite; will-change: transform; }
+.animate-glow-d { animation: glow-drift-d 16s ease-in-out infinite; will-change: transform; }
+
+/* Data particles — float upward from the bottom */
+@keyframes particle-float {
+  0%   { transform: translateY(0)      scale(1);   opacity: 0;   }
+  8%   {                                            opacity: 0.9; }
+  92%  {                                            opacity: 0.3; }
+  100% { transform: translateY(-100vh) scale(0.5); opacity: 0;   }
+}
+.bg-particle {
+  animation-name:            particle-float;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+/* Particles are a dark-mode-only decoration */
+[data-theme="light"] .bg-particle {
+  opacity: 0 !important;
+  animation-play-state: paused;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   FUTURISTIC UTILITY CLASSES
+══════════════════════════════════════════════════════════════════════ */
+
+/* Header glowing gradient border (replaces flat border-b) */
+.header-futuristic {
+  box-shadow:
+    0 1px 0 0 rgba(168, 85, 247, 0.40),
+    0 4px 30px rgba(168, 85, 247, 0.12),
+    0 0  60px rgba(236, 72,  153, 0.07);
+}
+[data-theme="light"] .header-futuristic {
+  box-shadow:
+    0 1px 0 0 rgba(168, 85, 247, 0.25),
+    0 4px 20px rgba(168, 85, 247, 0.06);
+}
+
+/* Gradient text — purple → pink → cyan */
+.text-gradient-futuristic {
+  background: linear-gradient(135deg, #c084fc 0%, #f472b6 50%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Gradient text — purple → pink only (for bold inline spans) */
+.text-gradient-bold {
+  background: linear-gradient(90deg, #c084fc 0%, #f472b6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Aurora animated border */
+@keyframes aurora-border {
+  0%,  100% { border-color: rgba(168,  85, 247, 0.50); box-shadow: 0 0 16px rgba(168,  85, 247, 0.30); }
+  33%        { border-color: rgba(236,  72, 153, 0.50); box-shadow: 0 0 16px rgba(236,  72, 153, 0.30); }
+  66%        { border-color: rgba(34,  211, 238, 0.50); box-shadow: 0 0 16px rgba(34,  211, 238, 0.30); }
+}
+.animate-aurora-border { animation: aurora-border 5s ease-in-out infinite; }

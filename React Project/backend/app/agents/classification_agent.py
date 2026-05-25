@@ -63,6 +63,11 @@ class ObjectClassificationAgent:
                 # If not an image, Gemini will use the filename and context
                 pass
 
+            logger.info(
+                "[ClassificationAgent] Classifying file: %s | Prompt: %s",
+                file_path.name, contents[0],
+            )
+
             response = call_gemini_with_retry(
                 client,
                 model="gemini-2.5-flash",
@@ -73,10 +78,14 @@ class ObjectClassificationAgent:
                 ),
             )
 
+            logger.info("[ClassificationAgent] Raw Gemini response:\n%s", response.text)
             data = json.loads(_strip_code_fences(response.text))
             media_type = data.get("media_type", "unknown")
-            
-            logger.info(f"Classification Agent: {file_path.name} -> {media_type} ({data.get('reasoning')})")
+            logger.info(
+                "[ClassificationAgent] Parsed JSON response:\n%s",
+                json.dumps(data, indent=2),
+            )
+            logger.info("[ClassificationAgent] %s -> %s (%s)", file_path.name, media_type, data.get('reasoning'))
             
             return ObjectClassificationResult(
                 media_type=media_type,

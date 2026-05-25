@@ -41,10 +41,20 @@ from ..schemas import (
 logger = logging.getLogger(__name__)
 
 
-SYSTEM_INSTRUCTION = """### Enhanced System Prompt
+SYSTEM_INSTRUCTION = """### TruthLens Dual-POV System Prompt
 
 **Role and Operating Framework**
-You are an expert AI forensic analyst and the analytical core of a multi-agent forensic system specializing in AI-Generated Image Detection. Your purpose is to act as the ultimate ground-truth evaluator, synthesizing passive forensic signals (artifact analysis) and active forensic markers (digital watermarking) to detect synthesized media. Your knowledge spans the theoretical physics of digital imaging, steganographic watermarking, and the practical implementation of state-of-the-art ensemble models.
+You are the conversational core of TruthLens, a multi-agent forensic system specializing in AI-Generated Image Detection. You operate in TWO distinct personas and must AUTOMATICALLY DETECT the user's intent from their question and the conversation context, then answer entirely in the single persona that best fits. Never announce which persona you are using and never mix the two voices in one reply.
+
+---
+
+## Persona A — The System Owner / Technical Architect (Technical POV)
+
+**Adopt this persona when** the user asks technical, architectural, backend, implementation, or research-level questions — e.g. how a model works, the system's internals, math/physics of a forensic signal, code, pipelines, or how components fit together.
+
+**Voice:** A deeply technical forensic expert and systems architect. Precise, rigorous, and dense with correct terminology. You can explain every detail of the TruthLens architecture and the science beneath it.
+
+This persona has full command of the following expertise:
 
 ## Your Core Expertise
 
@@ -79,15 +89,41 @@ Beyond modern deep learning, you deeply understand foundational forensic signals
 
 * **DIRE & AEROBLADE:** You understand the intuition that AI images construct almost perfectly within autoencoders, while real photos do not. You can explain forward-noise and reverse-denoise pixel-wise error measurement.
 
-## How to Respond
+### How Persona A Responds
 
-* **For System/Architecture Inquiries:** When asked about system design, frame your answers within a multi-agent context. Suggest how your forensic analysis (e.g., an AIDE module) can be modularly combined with scraping agents or active watermark detectors (e.g., a SynthID module) to create an impenetrable defense perimeter.
+* **For System/Architecture Inquiries:** Frame answers within a multi-agent context. Explain how forensic modules (e.g., AIDE) combine with active watermark detectors (e.g., SynthID) into a layered defense.
 * **For Conceptual Questions:** Explain the underlying physics, mathematics, or steganographic intuition first, then connect it to specific methods (like AIDE's gating network or SynthID's DCT embedding).
-* **For Implementation Questions:** Give concrete code examples using OpenCV, NumPy, PyTorch, or SciPy. Reference real repositories and logic pipelines (e.g., extracting SRM residuals or building an ELA script).
-* **For "How do I detect X":** Walk through a decision tree. Step 1: Check for active watermarks (SynthID/C2PA). Step 2: Extract low-level passive features (PFE/SRM). Step 3: Extract semantic features (CLIP). Step 4: Pass through an ensemble classifier.
-* **For Ambiguous Questions:** Ask exactly one clarifying question to narrow the scope—e.g., "Are we looking for passive artifact detection (like AIDE) or active watermark verification (like SynthID)?"
+* **For Implementation Questions:** Give concrete code examples using OpenCV, NumPy, PyTorch, or SciPy, and reference real logic pipelines (extracting SRM residuals, building an ELA script).
+* **For "How do I detect X":** Walk a decision tree — Step 1: check active watermarks (SynthID/C2PA). Step 2: extract low-level passive features (PFE/SRM). Step 3: extract semantic features (CLIP). Step 4: pass through an ensemble classifier.
+* **For Ambiguous Technical Questions:** Ask exactly one clarifying question to narrow scope.
 
-Always remain scientifically precise. Acknowledge the "cat-and-mouse" reality of AI forensics: while active tools like SynthID provide certainty when present, passive tools like AIDE are essential because no single watermark is universally adopted, and no single passive detector achieves perfect generalization across all unseen generators."""
+Always remain scientifically precise. Acknowledge the "cat-and-mouse" reality of AI forensics: active tools like SynthID provide certainty when present, but passive tools like AIDE are essential because no watermark is universally adopted and no single passive detector generalizes perfectly across all unseen generators.
+
+---
+
+## Persona B — The Humanized Guide (End-User POV)
+
+**Adopt this persona when** the user asks about their own image/result, wants a plain explanation of what the system found, asks "why did it say this?", "is my photo real?", or otherwise needs help understanding the outcome without jargon. Default to this persona for casual, worried, or non-expert questions.
+
+**Voice:** A friendly, empathetic, plain-spoken digital-literacy educator. You are the human-friendly translator of the system's complex forensic data. You make people feel capable, not overwhelmed.
+
+How Persona B responds:
+
+* **Translate, don't lecture.** Convert forensic signals (AIDE probability, SynthID watermark, noise/edge/compression analysis) into everyday language. Use analogies a non-technical person understands. Avoid acronyms unless you immediately explain them in one short phrase.
+* **Explain the "why" behind the result.** Walk through the system's reasoning step-by-step in plain terms so the user understands what led to the verdict, not just the verdict itself.
+* **Double-check the system's output.** You may sanity-check and reason about the system's findings — if signals conflict (e.g., a low AI probability but a detected watermark), explain that tension honestly rather than papering over it.
+* **Be warm and reassuring.** Acknowledge the user's concern, stay encouraging, and end by teaching one transferable media-literacy tip when it fits.
+* **Be honest about uncertainty.** If the result is in an ambiguous range, say so plainly instead of overstating confidence.
+
+---
+
+## Persona Selection Rules
+
+1. Read the latest user turn together with the recent conversation history.
+2. If the question is about internals, architecture, theory, math, or code → **Persona A**.
+3. If the question is about the user's result, a simple explanation, or general reassurance → **Persona B**.
+4. When genuinely mixed, lead with Persona B's accessibility but you may include a clearly-worded technical note.
+5. Commit fully to one voice per reply. Plain prose only — no markdown headers."""
 
 
 ROUTER_SYSTEM_INSTRUCTION = (
@@ -214,6 +250,10 @@ Rules:
 - "action" = "other" for anything else.
 Return ONLY the JSON object, no markdown fences."""
 
+            logger.info(
+                "[Router] Sending classification prompt:\n%s",
+                prompt,
+            )
             response = call_gemini_with_retry(
                 client,
                 model=ROUTER_MODEL,
@@ -223,7 +263,18 @@ Return ONLY the JSON object, no markdown fences."""
                     response_mime_type="application/json",
                 ),
             )
+            logger.info(
+                "[Router] Raw Gemini response:\n%s", response.text
+            )
             payload = json.loads(_strip_code_fences(response.text))
+            logger.info(
+                "[Router] Parsed classification result:\n%s",
+                json.dumps(payload, indent=2),
+            )
+            logger.info(
+                "[router] raw classification payload:\n%s",
+                json.dumps(payload, indent=2, ensure_ascii=False),
+            )
 
             valid_media = {"image", "video", "audio", "text", "unknown"}
             valid_action = {"deepfake_analysis", "follow_up", "small_talk", "other"}
@@ -234,12 +285,17 @@ Return ONLY the JSON object, no markdown fences."""
             if action not in valid_action:
                 action = "other"
 
-            return RouterResult(
+            result = RouterResult(
                 media_type=media_type,
                 action=action,
                 reasoning=payload.get("reasoning", "") or "",
                 router=ROUTER_MODEL,
             )
+            logger.info(
+                "[router] final RouterResult:\n%s",
+                json.dumps(result.model_dump(), indent=2, ensure_ascii=False),
+            )
+            return result
         except Exception as e:
             logger.warning("Router classification error: %s", e)
             return RouterResult(
@@ -293,6 +349,22 @@ Return ONLY the JSON object, no markdown fences."""
         opencv: OpenCVComments,
         conflict: Optional["ConflictResult"] = None,
     ) -> str:
+        logger.info(
+            "[EvalPrompt] Building evaluation prompt with signals — "
+            "AIDE score: %.4f | SynthID is_ai: %s | synthid_detected: %s | "
+            "watermark_found: %s | gen_ai_tool: %s | confidence: %.4f | "
+            "opencv noise: %s | edges: %s | compression: %s | conflict: %s",
+            score,
+            synthid.is_ai,
+            synthid.synth_id_detected,
+            synthid.watermark_found,
+            getattr(synthid, "gen_ai_tool", "N/A"),
+            synthid.confidence,
+            opencv.noise,
+            opencv.edges,
+            opencv.compression,
+            json.dumps(conflict.model_dump(), indent=2) if conflict else "None",
+        )
         pct = (score or 0) * 100
         synthid_text = "SynthID Watermark Not Detected."
         if synthid.synth_id_detected or synthid.watermark_found:
@@ -374,10 +446,14 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
             client = genai.Client(vertexai=True, project=project_id, location=location)
             img = Image.open(image_path)
             prompt = GeminiRouterAgent.build_eval_prompt(score, synthid, opencv, conflict)
+            logger.info("[EvalAgent] Sending evaluation prompt to Gemini.")
             response = call_gemini_with_retry(
                 client,
                 model="gemini-2.5-pro",
                 contents=[img, prompt],
+            )
+            logger.info(
+                "[EvalAgent] Gemini evaluation response:\n%s", response.text
             )
             return EvalResult(text=response.text, success=True)
         except Exception as e:
@@ -421,7 +497,14 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
         location: str,
         appendix: Optional[str] = None,
     ) -> str:
-        """Open-ended chat reply using the forensic-expert system prompt."""
+        """Open-ended chat reply using the dual-POV system prompt."""
+        logger.info("[chat] incoming user_text: %s", user_text)
+        logger.info(
+            "[chat] incoming history (%d turns):\n%s",
+            len(history),
+            json.dumps(history, indent=2, ensure_ascii=False),
+        )
+
         fallback_base = user_text.strip() if user_text else "Hello!"
         fallback = (
             f"Thanks for the message — I'm the TruthLens chatbot. {fallback_base}"
@@ -429,6 +512,7 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
             else "Hi! I'm TruthLens. Upload an image and I'll analyze it for deepfakes."
         )
         if not project_id:
+            logger.info("[chat] no project_id; returning fallback reply.")
             return f"{fallback}\n\n{appendix}" if appendix else fallback
 
         try:
@@ -443,16 +527,22 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
                 if text:
                     transcript_lines.append(f"{role_label}: {text}")
             transcript = "\n".join(transcript_lines) if transcript_lines else "(no prior turns)"
+            logger.info(
+                "[Chat] Incoming user message: %s", user_text
+            )
+            logger.info(
+                "[Chat] Conversation history (last 6 turns):\n%s", transcript
+            )
 
+            # The dual-POV persona lives entirely in SYSTEM_INSTRUCTION (passed via
+            # config below). The prompt itself only carries the conversation context
+            # so the model can decide which persona the latest turn calls for.
             prompt = (
                 f"Recent conversation:\n{transcript}\n\n"
-                "Reply as the TruthLens forensic expert. Provide clear, educational, "
-                "and thorough answers grounded in your system instructions — explain the "
-                "underlying physics, mathematics, or intuition when the user asks a "
-                "conceptual question, and give concrete implementation pointers when "
-                "they ask 'how'. Match the response length to the depth of the question: "
-                "be concise for small talk, more detailed for technical questions. "
-                "Plain prose only — no markdown headers."
+                f"User: {user_text}\n\n"
+                "Reply to the latest user turn. Detect intent and answer in the single "
+                "persona (technical System Owner OR humanized End-User guide) that best "
+                "fits, per your system instructions. Plain prose only — no markdown headers."
             )
             if appendix:
                 prompt += (
@@ -460,11 +550,17 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
                     f"\"{appendix}\""
                 )
 
+            logger.info("[chat] prompt sent to Gemini:\n%s", prompt)
+
+            logger.info("[Chat] Sending conversational prompt to Gemini (gemini-2.5-pro).")
             response = call_gemini_with_retry(
                 client,
                 model="gemini-2.5-pro",
                 contents=[prompt],
                 config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION),
+            )
+            logger.info(
+                "[Chat] Gemini conversational reply:\n%s", response.text
             )
             return response.text.strip()
         except Exception as e:

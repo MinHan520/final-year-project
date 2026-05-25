@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Bell, User, LayoutDashboard, Info } from 'lucide-react';
+import { Bell, User, LayoutDashboard, Info, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useThemeStore } from '../../stores/theme-store';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -35,6 +36,7 @@ function playNotificationChime() {
 }
 
 export function TopHeader() {
+  const { theme, toggleTheme } = useThemeStore();
   const [bellActive, setBellActive] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -61,13 +63,20 @@ export function TopHeader() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 h-14 flex items-center gap-6 px-6 border-b border-border bg-bg/80 backdrop-blur supports-[backdrop-filter]:bg-bg/60">
-      {/* Brand */}
+    <header className="sticky top-0 z-30 h-14 flex items-center gap-6 px-6 header-futuristic bg-bg/80 backdrop-blur-xl supports-[backdrop-filter]:bg-bg/60">
+      {/* Brand & Logo */}
       <NavLink
         to="/"
-        className="font-display text-lg font-bold tracking-tight text-fg shrink-0 hover:text-primary transition-colors"
+        className="flex items-center gap-2 group shrink-0"
       >
-        TruthLens
+        <img
+          src="/favicon.svg"
+          alt="TruthLens Logo"
+          className="size-6 transition-transform group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_rgba(244,114,182,0.8)]"
+        />
+        <span className="font-display text-lg font-bold tracking-tight text-gradient-futuristic transition-all">
+          TruthLens
+        </span>
       </NavLink>
 
       {/* Navigation links */}
@@ -79,10 +88,10 @@ export function TopHeader() {
             end={path === '/'}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors',
+                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all duration-200',
                 isActive
-                  ? 'bg-primary/15 text-fg font-medium'
-                  : 'text-muted hover:bg-card hover:text-fg',
+                  ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/15 text-fg font-medium border border-purple-500/25 shadow-[0_0_12px_rgba(168,85,247,0.2)]'
+                  : 'text-muted hover:bg-purple-500/10 hover:text-purple-300 hover:border hover:border-purple-500/15 border border-transparent',
               )
             }
           >
@@ -94,12 +103,23 @@ export function TopHeader() {
 
       {/* Right-side icons */}
       <div className="ml-auto flex items-center gap-2">
+
+        {/* Theme toggle */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="size-9 grid place-items-center rounded-md text-muted hover:text-purple-400 hover:bg-purple-500/10 transition-all"
+          aria-label="Toggle Theme"
+        >
+          {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </button>
+
         {/* Notification bell */}
         <button
           type="button"
           onClick={() => setBellActive(false)}
           className={cn(
-            'relative size-9 grid place-items-center rounded-md text-muted hover:text-fg hover:bg-card transition-colors',
+            'relative size-9 grid place-items-center rounded-md text-muted hover:text-pink-400 hover:bg-pink-500/10 transition-all',
             bellActive && 'animate-bell-glow',
           )}
           aria-label="Notifications"
@@ -107,7 +127,7 @@ export function TopHeader() {
         >
           <Bell className="size-4" />
           {bellActive && (
-            <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-primary" />
+            <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 shadow-[0_0_6px_rgba(236,72,153,0.8)]" />
           )}
         </button>
 
@@ -120,15 +140,14 @@ export function TopHeader() {
         >
           <button
             type="button"
-            className="size-9 grid place-items-center rounded-full bg-card text-fg hover:ring-2 hover:ring-primary/40 transition-all"
+            className="size-9 grid place-items-center rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-fg hover:ring-2 hover:ring-purple-400/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all"
             aria-label="Account"
           >
             <User className="size-4" />
           </button>
 
-          {/* Dropdown */}
           {profileOpen && (
-            <div className="absolute right-0 top-full mt-1 w-44 rounded-md border border-border bg-card shadow-xl py-1 z-50 animate-[fadeIn_150ms_ease-out]">
+            <div className="absolute right-0 top-full mt-1 w-44 border border-border bg-card shadow-xl py-1 z-50 animate-[fadeIn_150ms_ease-out]">
               <button
                 type="button"
                 className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted hover:text-fg hover:bg-bg-elevated transition-colors text-left"

@@ -8,26 +8,51 @@ import { SHAPPanel } from '../components/scan/SHAPPanel';
 import { RiskScoreCard } from '../components/scan/RiskScoreCard';
 import { ForensicMapTrio } from '../components/scan/ForensicMapTrio';
 import { useChatStore } from '../stores/chat-store';
+import { cn } from '../lib/utils';
 import type { ScanRow } from '../api/types';
 
 const TABS = [
-  { id: 'overview', label: 'AIDE Detection', icon: Brain },
-  { id: 'forensics', label: 'Low-Level Artifacts', icon: Layers },
-  { id: 'synthid', label: 'SynthID', icon: Shield },
-  { id: 'evaluation', label: 'Agentic Evaluation', icon: FileSearch },
+  {
+    id: 'overview',
+    label: 'AIDE Detection',
+    icon: Brain,
+    activeClass: 'bg-purple-600/90 text-white shadow-[0_0_20px_rgba(147,51,234,0.55)]',
+    hoverClass: 'hover:bg-purple-500/10 hover:text-purple-300',
+  },
+  {
+    id: 'forensics',
+    label: 'Low-Level Artifacts',
+    icon: Layers,
+    activeClass: 'bg-cyan-600/90 text-white shadow-[0_0_20px_rgba(8,145,178,0.55)]',
+    hoverClass: 'hover:bg-cyan-500/10 hover:text-cyan-300',
+  },
+  {
+    id: 'synthid',
+    label: 'SynthID',
+    icon: Shield,
+    activeClass: 'bg-emerald-600/90 text-white shadow-[0_0_20px_rgba(5,150,105,0.55)]',
+    hoverClass: 'hover:bg-emerald-500/10 hover:text-emerald-300',
+  },
+  {
+    id: 'evaluation',
+    label: 'Agentic Evaluation',
+    icon: FileSearch,
+    activeClass: 'bg-pink-600/90 text-white shadow-[0_0_20px_rgba(219,39,119,0.55)]',
+    hoverClass: 'hover:bg-pink-500/10 hover:text-pink-300',
+  },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
 
 export function ScanDetail() {
   const { scanId } = useParams<{ scanId: string }>();
-  const { bindScan, reset } = useChatStore();
+  const { bindScan } = useChatStore();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
   useEffect(() => {
     bindScan(scanId || null);
-    return () => reset();
-  }, [scanId, bindScan, reset]);
+    return () => bindScan(null);
+  }, [scanId, bindScan]);
 
   const { data: scan, isLoading, error } = useQuery<ScanRow>({
     queryKey: ['scan', scanId],
@@ -75,6 +100,17 @@ export function ScanDetail() {
   const detectedType = summary?.object_classification?.media_type || scan.media_type;
   const isImage = detectedType === 'image' || detectedType?.startsWith('image/');
 
+  // Verdict banner config — used in the Agentic Evaluation tab
+  const verdictScore = scan.score ?? summary?.aide?.score ?? null;
+  const elapsedSeconds = ((new Date(scan.updated_at).getTime() - new Date(scan.created_at).getTime()) / 1000).toFixed(1);
+  const VERDICT_CONFIGS = {
+    HIGH_RISK:    { label: 'Highly Likely AI-Generated',             bg: 'bg-red-500/10 border border-red-500/25 shadow-[0_0_25px_rgba(220,38,38,0.2)]',           text: 'text-red-700 dark:text-red-300',   pulse: true  },
+    AI_GENERATED: { label: 'AI-Generated',                           bg: 'bg-red-500/10 border border-red-500/20',                                                  text: 'text-red-600 dark:text-red-400',   pulse: false },
+    INCONCLUSIVE: { label: 'Inconclusive — Likely Not AI-Generated', bg: 'bg-amber-500/10 border border-amber-500/20',                                              text: 'text-amber-600 dark:text-amber-400', pulse: false },
+    AUTHENTIC:    { label: 'Authentic (Not AI-Generated)',            bg: 'bg-green-500/10 border border-green-500/20 shadow-[0_0_20px_rgba(16,185,129,0.15)]',     text: 'text-green-700 dark:text-green-400', pulse: false },
+  } as const;
+  const verdictCfg = scan.risk_label ? VERDICT_CONFIGS[scan.risk_label] : null;
+
   if (!isImage) {
     return (
       <div className="max-w-6xl mx-auto space-y-6">
@@ -84,22 +120,29 @@ export function ScanDetail() {
 
         <div className="flex justify-between items-end">
           <div>
-            <h1 className="font-display text-3xl font-semibold text-fg mb-1">Forensic Report</h1>
+            <h1 className="font-display text-3xl font-semibold mb-1 text-gradient-futuristic">Forensic Report</h1>
             <p className="text-sm text-muted font-mono">{scan.filename}</p>
           </div>
-          <div className="text-xs text-muted uppercase tracking-wider font-bold">
-            Status:{' '}
-            <span className={scan.status === 'failed' ? 'text-danger' : 'text-success'}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted uppercase tracking-wider font-bold">Status</span>
+            <span className={cn(
+              'text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border',
+              scan.status === 'failed'
+                ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.35)]',
+            )}>
               {scan.status}
             </span>
           </div>
         </div>
 
-        <div className="rounded-card border border-border bg-card overflow-hidden p-16 flex flex-col items-center justify-center text-center space-y-4 mt-8">
-          <div className="size-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-            <AlertTriangle className="size-8 text-primary" />
+        <div className="rounded-3xl bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20 p-16 flex flex-col items-center justify-center text-center space-y-4 mt-8 shadow-[0_0_40px_rgba(168,85,247,0.15)]">
+          <div className="size-16 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center mb-2 shadow-[inset_0_0_20px_rgba(236,72,153,0.2),_0_0_20px_rgba(168,85,247,0.2)]">
+            <AlertTriangle className="size-8 text-purple-500" />
           </div>
-          <h2 className="font-display text-xl font-semibold text-fg capitalize">{detectedType} Detected</h2>
+          <h2 className="font-display text-xl font-semibold capitalize bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-pink-500 dark:from-purple-400 dark:to-pink-400">
+            {detectedType} Detected
+          </h2>
           <p className="text-muted max-w-md">
             Features for {detectedType} forensics are coming soon. Please come again next time.
           </p>
@@ -116,12 +159,17 @@ export function ScanDetail() {
 
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-fg mb-1">Forensic Report</h1>
+          <h1 className="font-display text-3xl font-semibold mb-1 text-gradient-futuristic">Forensic Report</h1>
           <p className="text-sm text-muted font-mono">{scan.filename}</p>
         </div>
-        <div className="text-xs text-muted uppercase tracking-wider font-bold">
-          Status:{' '}
-          <span className={scan.status === 'failed' ? 'text-danger' : 'text-success'}>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted uppercase tracking-wider font-bold">Status</span>
+          <span className={cn(
+            'text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border',
+            scan.status === 'failed'
+              ? 'bg-red-500/15 text-red-400 border-red-500/30'
+              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.35)]',
+          )}>
             {scan.status}
           </span>
         </div>
@@ -140,19 +188,18 @@ export function ScanDetail() {
         </div>
       )}
 
-      <div className="flex gap-1 p-1 rounded-lg bg-bg-elevated border border-border">
-        {TABS.map(({ id, label, icon: Icon }) => (
+      <div className="flex gap-1 p-1 rounded-xl bg-gradient-to-r from-purple-950/30 via-pink-950/20 to-slate-900/40 dark:from-purple-950/30 dark:via-pink-950/20 dark:to-slate-900/40 border border-purple-500/10 shadow-[0_0_20px_rgba(168,85,247,0.08)]">
+        {TABS.map(({ id, label, icon: Icon, activeClass, hoverClass }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`
-              flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md
-              text-xs font-medium tracking-wide uppercase transition-all
-              ${activeTab === id
-                ? 'bg-primary text-primary-foreground shadow-md'
-                : 'text-muted hover:text-fg hover:bg-card/60'
-              }
-            `}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md',
+              'text-xs font-medium tracking-wide uppercase transition-all duration-200',
+              activeTab === id
+                ? activeClass
+                : cn('text-muted', hoverClass),
+            )}
           >
             <Icon className="size-4" />
             <span className="hidden sm:inline">{label}</span>
@@ -160,7 +207,7 @@ export function ScanDetail() {
         ))}
       </div>
 
-      <div className="rounded-card border border-border bg-card overflow-hidden">
+      <div className="rounded-2xl bg-card overflow-hidden shadow-[0_0_40px_rgba(168,85,247,0.12),_0_0_80px_rgba(236,72,153,0.06)]">
         {activeTab === 'overview' && (
           <div className="p-6 space-y-6">
             <div>
@@ -221,22 +268,29 @@ export function ScanDetail() {
 
             {summary?.synthid ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-6 p-6 rounded-lg bg-bg-elevated border border-border">
+                <div className={`flex items-center gap-6 p-6 rounded-2xl shadow-sm border
+                  ${summary.synthid.watermark_found
+                    ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50'
+                    : 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/50'
+                  }
+                `}>
                   <div className={`
-                    size-16 rounded-full flex items-center justify-center text-2xl
+                    size-16 rounded-full flex items-center justify-center text-2xl shadow-inner
                     ${summary.synthid.watermark_found
-                      ? 'bg-danger/20 text-danger'
-                      : 'bg-success/20 text-success'
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
+                      : 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
                     }
                   `}>
                     {summary.synthid.watermark_found ? '⚠' : '✓'}
                   </div>
                   <div>
-                    <p className="text-lg font-semibold text-fg">
+                    <p className={`text-xl font-bold
+                      ${summary.synthid.watermark_found ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}
+                    `}>
                       Watermark {summary.synthid.watermark_found ? 'Detected' : 'Not Detected'}
                     </p>
                     {summary.synthid.synth_id_detected && (
-                      <p className="text-sm text-danger font-medium">
+                      <p className="text-sm text-red-600 dark:text-red-400 font-medium mt-1">
                         SynthID confirmed — this image was generated by a Google AI model.
                       </p>
                     )}
@@ -244,7 +298,7 @@ export function ScanDetail() {
                 </div>
 
                 {summary.synthid.reasoning && (
-                  <div className="p-4 rounded-md bg-card/60 border border-border">
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 shadow-sm">
                     <p className="text-xs uppercase tracking-wider text-muted font-medium mb-2">Analysis</p>
                     <p className="text-sm text-fg leading-relaxed">{summary.synthid.reasoning}</p>
                   </div>
@@ -268,12 +322,51 @@ export function ScanDetail() {
               </p>
             </div>
 
+            {/* ── Final Verdict Banner ── */}
+            {verdictCfg && (
+              <div className={cn(
+                'rounded-2xl p-5 flex items-center gap-5 transition-all',
+                verdictCfg.bg,
+                verdictCfg.pulse && 'animate-pulse',
+              )}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-mono uppercase tracking-widest text-muted mb-1">Final Verdict</p>
+                  <p className={cn('text-xl font-bold font-display leading-tight', verdictCfg.text)}>
+                    {verdictCfg.label}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs font-mono uppercase tracking-widest text-muted mb-1">Processing Time</p>
+                  <p className={cn('text-4xl font-display font-bold tabular-nums', verdictCfg.text)}>
+                    {elapsedSeconds}s
+                  </p>
+                </div>
+                {verdictScore !== null && (
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-mono uppercase tracking-widest text-muted mb-1">AI Probability</p>
+                    <p className={cn('text-4xl font-display font-bold tabular-nums', verdictCfg.text)}>
+                      {(verdictScore * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {summary?.eval?.text ? (
-              <div className="p-6 rounded-lg bg-bg-elevated border border-border">
+              <div className="p-6 rounded-xl bg-gradient-to-br from-purple-950/40 via-fuchsia-950/30 to-slate-950/50 border border-purple-500/20 shadow-[0_0_30px_rgba(168,85,247,0.15),_0_0_60px_rgba(236,72,153,0.08)]">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-0.5 w-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500" />
+                  <span className="text-xs uppercase tracking-wider text-purple-400 font-semibold">AI Forensic Verdict</span>
+                  <div className="h-0.5 flex-1 rounded-full bg-gradient-to-r from-pink-500/40 to-transparent" />
+                </div>
                 <div className="text-sm text-fg whitespace-pre-wrap leading-relaxed">
                   {summary.eval.text.split(/(\*\*.*?\*\*)/g).map((part, i) => {
                     if (part.startsWith('**') && part.endsWith('**')) {
-                      return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+                      return (
+                        <strong key={i} className="font-bold text-gradient-bold">
+                          {part.slice(2, -2)}
+                        </strong>
+                      );
                     }
                     return <span key={i}>{part}</span>;
                   })}

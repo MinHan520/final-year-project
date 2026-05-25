@@ -51,6 +51,9 @@ class OpenCVResult(BaseModel):
     comments: OpenCVComments
 
 
+GenAITool = Literal["Google AI", "OpenAI", "Kakao", "ElevenLabs", "Others", "Unknown"]
+
+
 class SynthIDResult(BaseModel):
     is_ai: Optional[bool] = Field(
         default=None,
@@ -60,6 +63,11 @@ class SynthIDResult(BaseModel):
     reasoning: str = ""
     synth_id_detected: bool = False
     watermark_found: bool = False
+    gen_ai_tool: GenAITool = Field(
+        default="Unknown",
+        description="Detected generative-AI source, inferred from SynthID "
+        "partner watermarks or visual/metadata analysis.",
+    )
 
 
 MediaType = Literal["image", "video", "audio", "text", "unknown", "none"]

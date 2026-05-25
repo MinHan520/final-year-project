@@ -12,7 +12,12 @@ Rules:
 
 from __future__ import annotations
 
+import json
+import logging
+
 from ..schemas import ConflictResult, ConflictSeverity
+
+logger = logging.getLogger(__name__)
 
 
 class ConflictResolutionAgent:
@@ -35,6 +40,15 @@ class ConflictResolutionAgent:
         synthid_result,
         opencv_anomalies: bool,
     ) -> ConflictResult:
+        logger.info(
+            "[ConflictAgent] Evaluating signals — AIDE score: %.4f | "
+            "SynthID watermark: %s | SynthID confidence: %.4f | "
+            "OpenCV anomalies: %s",
+            aide_score,
+            synthid_result.watermark_found,
+            synthid_result.confidence,
+            opencv_anomalies,
+        )
         triggered_rules: list[tuple] = []
 
         # ── Rule A: False Negative ───────────────────────────────────────────
@@ -78,6 +92,7 @@ class ConflictResolutionAgent:
             ))
 
         if not triggered_rules:
+            logger.info("[ConflictAgent] No conflicts detected. Action: proceed.")
             return ConflictResult(has_conflict=False, action_required="proceed")
 
         # Escalate to highest severity found
@@ -96,7 +111,7 @@ class ConflictResolutionAgent:
 
         all_signals = list({sig for rule in triggered_rules for sig in rule[3]})
 
-        return ConflictResult(
+        result = ConflictResult(
             has_conflict        = True,
             severity            = worst[1],
             conflicting_signals = all_signals,
@@ -105,6 +120,11 @@ class ConflictResolutionAgent:
             action_required     = action_map[worst[1]],
             confidence_gap      = abs(aide_score - synthid_result.confidence),
         )
+        logger.info(
+            "[ConflictAgent] Conflict detected. Result:\n%s",
+            json.dumps(result.model_dump(), indent=2),
+        )
+        return result
 
 
 # Backward-compat alias used by existing imports
