@@ -52,8 +52,9 @@ export function SHAPPanel({ scanId, summary }: SHAPPanelProps) {
         ) : (
           <div className="flex flex-col items-center justify-center py-8 space-y-4 text-center">
             <p className="text-sm text-muted max-w-md">
-              SHAP computation is expensive and can take 5–30 seconds depending on image size.
-              Run it on-demand to see a pixel-level attribution heatmap.
+              Since this is running locally, please expect a slow response of around{' '}
+              <strong className="text-fg">20–30 minutes</strong>. We will optimize
+              performance in the future. Run it on-demand to see a pixel-level attribution heatmap.
             </p>
             {error && <p className="text-sm text-danger">{error}</p>}
             <button

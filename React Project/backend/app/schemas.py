@@ -60,6 +60,7 @@ class SynthIDResult(BaseModel):
         description="Gemini's overall AI/real verdict; None if analysis failed.",
     )
     confidence: float = 0.0
+    watermark_confidence: float = 0.0
     reasoning: str = ""
     synth_id_detected: bool = False
     watermark_found: bool = False
@@ -113,10 +114,12 @@ class ConflictSeverity(str, Enum):
 
 
 class ConflictResult(BaseModel):
-    has_conflict:        bool
-    severity:            Optional[ConflictSeverity]                                  = None
-    conflicting_signals: list[str]                                                   = []
-    rule_triggered:      Optional[str]                                               = None
-    reason:              Optional[str]                                               = None
-    action_required:     Optional[Literal["proceed", "human_review", "reclassify"]] = None
-    confidence_gap:      Optional[float]                                             = None
+    has_conflict:           bool
+    severity:               Optional[ConflictSeverity]                                  = None
+    conflicting_signals:    list[str]                                                   = []
+    rule_triggered:         Optional[str]                                               = None
+    reason:                 Optional[str]                                               = None
+    action_required:        Optional[Literal["proceed", "human_review", "reclassify"]] = None
+    confidence_gap:         Optional[float]                                             = None
+    final_verdict:          Optional[str]                                               = None
+    final_confidence_score: Optional[float]                                             = None

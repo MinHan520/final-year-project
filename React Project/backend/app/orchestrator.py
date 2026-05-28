@@ -50,7 +50,7 @@ from .storage import ScanStore, classify_risk
 
 logger = logging.getLogger(__name__)
 
-HUMAN_REVIEW_TIMEOUT_SECONDS = 300
+HUMAN_REVIEW_TIMEOUT_SECONDS = 1800
 MAX_RECLASSIFICATION_ATTEMPTS = 2
 
 # Module-level state shared with routes_scan for the human-in-the-loop flow.
@@ -68,10 +68,22 @@ _ANOMALY_KEYWORDS = frozenset({
 def _detect_opencv_anomalies(comments: OpenCVComments) -> bool:
     """Derive a boolean anomaly flag from VLM commentary text."""
     combined = f"{comments.noise} {comments.edges} {comments.compression}".lower()
-    # Fallback comments mean GCP wasn't available — treat as no analysis done.
     if "check your gemini api" in combined:
         return False
     return any(kw in combined for kw in _ANOMALY_KEYWORDS)
+
+
+def _calculate_opencv_anomaly_score(comments: OpenCVComments) -> float:
+    """Return a continuous [0.0, 1.0] anomaly score from VLM commentary text.
+
+    Computed as the proportion of _ANOMALY_KEYWORDS found in the combined text.
+    Returns 0.0 when the Gemini API fallback message is detected (no real analysis).
+    """
+    combined = f"{comments.noise} {comments.edges} {comments.compression}".lower()
+    if "check your gemini api" in combined:
+        return 0.0
+    found = sum(1 for kw in _ANOMALY_KEYWORDS if kw in combined)
+    return found / len(_ANOMALY_KEYWORDS)
 
 
 async def _run_stage(
@@ -226,7 +238,7 @@ async def run_scan(
             agent="synthid",
             label="SynthID Detection",
             coro_factory=lambda: asyncio.to_thread(
-                SynthIDAgent.check, file_path, project_id, location
+                SynthIDAgent.check, file_path, project_id, "global"
             ),
         )
         synthid = (
@@ -240,11 +252,33 @@ async def run_scan(
             json.dumps(synthid.model_dump(), indent=2),
         )
 
+        # ── Recompute AI Probability Score ───────────────────────────────────
+        # Rule:
+        #   • SynthID watermark detected → AI Probability = SynthID confidence (definitive)
+        #   • No watermark              → AI Probability = avg(AIDE score, SynthID confidence)
+        if aide is not None and aide.success:
+            aide_raw = aide.score
+            synthid_conf = synthid.confidence if synthid.confidence is not None else 0.0
+            if synthid.watermark_found:
+                score = synthid_conf
+                logger.info(
+                    "[Orchestrator] Score formula: SynthID watermark detected → "
+                    "AI Probability = SynthID confidence = %.4f", score,
+                )
+            else:
+                score = max(aide_raw, synthid_conf)
+                logger.info(
+                    "[Orchestrator] Score formula: No watermark → "
+                    "AI Probability = max(AIDE=%.4f, SynthID=%.4f) = %.4f",
+                    aide_raw, synthid_conf, score,
+                )
+
+
         # ── Stage 5: Conflict Resolution ─────────────────────────────────────
         logger.info("\n[Orchestrator] Step 5/6: Conflict Resolution started.")
         conflict: Optional[ConflictResult] = None
         if aide is not None and aide.success:
-            opencv_anomalies = _detect_opencv_anomalies(opencv_comments)
+            opencv_anomaly_score = _calculate_opencv_anomaly_score(opencv_comments)
 
             attempt = 0
             while True:
@@ -257,7 +291,7 @@ async def run_scan(
                         ConflictResolutionAgent.evaluate,
                         aide.score,
                         synthid,
-                        opencv_anomalies,
+                        opencv_anomaly_score,
                     ),
                 )
                 if conflict is None or conflict.action_required != "human_review":
@@ -288,6 +322,8 @@ async def run_scan(
                     )
                     _pending_reviews.pop(scan_id, None)
                     _review_decisions.pop(scan_id, None)
+                    if conflict is not None:
+                        conflict.final_verdict = "Inconclusive"
                     break
 
                 decision_data = _review_decisions.pop(scan_id, {})
@@ -327,6 +363,26 @@ async def run_scan(
 
         # ── Persist + signal completion ──────────────────────────────────────
         risk_label = classify_risk(score) if score is not None else None
+
+        # Override risk_label with Conflict Agent's decisive verdict when available.
+        # This ensures the frontend banner reflects the rule-based final_verdict,
+        # not just the AIDE score bucket.
+        _VERDICT_TO_RISK: dict[str, str] = {
+            "AI-Generated (Watermark Found)": "WATERMARK_CONFIRMED",
+            "AI-Generated":                   "AI_GENERATED",
+            "High Chances AI-Generated":      "HIGH_CHANCES_AI",
+            "Likely Authentic":               "AUTHENTIC",
+            "Inconclusive":                   "INCONCLUSIVE",
+        }
+        if conflict is not None and conflict.final_verdict:
+            mapped = _VERDICT_TO_RISK.get(conflict.final_verdict)
+            if mapped:
+                logger.info(
+                    "[Orchestrator] Overriding risk_label '%s' → '%s' "
+                    "(conflict.final_verdict=%r, rule=%s)",
+                    risk_label, mapped, conflict.final_verdict, conflict.rule_triggered,
+                )
+                risk_label = mapped
         logger.info(
             "\n" + "=" * 60 +
             "\n[Orchestrator] === ANALYSIS COMPLETE ==="

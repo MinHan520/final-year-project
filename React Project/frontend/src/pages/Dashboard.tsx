@@ -175,15 +175,15 @@ export function Dashboard() {
           <UploadDropzone onScanCreated={handleScanCreated} />
 
           {/* ── Agent capability cards ───────────────────────────────── */}
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {CAPABILITIES.map(({ label, icon: Icon, ready }) => (
               <div
                 key={label}
                 className={cn(
-                  'group agent-card flex flex-col justify-between h-28 p-4 rounded-none border transition-all duration-300 relative bg-white dark:bg-slate-900 cursor-pointer',
+                  'group agent-card flex flex-col justify-between h-32 p-5 rounded-2xl border transition-all duration-300 relative bg-white/60 dark:bg-slate-900/60 backdrop-blur-md cursor-pointer overflow-hidden',
                   ready 
-                    ? 'border-slate-200 dark:border-slate-800/60 shadow-[0_0_25px_rgba(168,85,247,0.2)]' 
-                    : 'border-slate-200 dark:border-slate-800/60 hover:shadow-[0_0_25px_rgba(168,85,247,0.2)]'
+                    ? 'border-purple-500/30 shadow-[0_8px_30px_rgba(168,85,247,0.12)] hover:shadow-[0_12px_40px_rgba(168,85,247,0.2)] hover:-translate-y-1' 
+                    : 'border-slate-200/50 dark:border-slate-800/50 shadow-sm hover:border-purple-500/20 hover:shadow-[0_8px_30px_rgba(168,85,247,0.08)] hover:-translate-y-1 opacity-90'
                 )}
                 onMouseMove={(e) => {
                   const r = e.currentTarget.getBoundingClientRect();
@@ -193,49 +193,50 @@ export function Dashboard() {
               >
                 {/* Top edge active/hover accent line */}
                 <div className={cn(
-                  "absolute top-0 left-0 right-0 h-[2px] bg-purple-600 transition-opacity duration-300 pointer-events-none",
-                  ready ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  "absolute top-0 left-0 right-0 h-1 bg-gradient-to-r transition-all duration-500 pointer-events-none",
+                  ready 
+                    ? "from-purple-500 to-pink-500 opacity-100" 
+                    : "from-slate-400 to-slate-500 opacity-0 group-hover:opacity-40 group-hover:from-purple-400 group-hover:to-pink-400"
                 )} />
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'size-1.5 rounded-full',
-                        ready ? 'bg-success shadow-[0_0_8px_var(--color-success)]' : 'bg-muted-foreground'
-                      )}
-                    />
-                    <Icon className="size-4 text-muted" />
+                
+                <div className="flex items-center justify-between w-full relative z-10">
+                  <div className={cn(
+                    "p-2 rounded-xl transition-colors duration-300",
+                    ready ? "bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-purple-50 dark:group-hover:bg-purple-900/20 group-hover:text-purple-500"
+                  )}>
+                    <Icon className="size-5" />
                   </div>
                   <span
                     className={cn(
-                      'font-mono text-[8px] tracking-widest uppercase px-1.5 py-0.5 border rounded-none',
+                      'font-sans text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full shadow-inner transition-colors duration-300',
                       ready
-                        ? 'text-success border-success/30 bg-success/5'
-                        : 'text-muted-foreground border-border bg-bg-elevated/40'
+                        ? 'text-purple-700 dark:text-purple-300 bg-purple-100/80 dark:bg-purple-900/50'
+                        : 'text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/80'
                     )}
                   >
-                    {ready ? '[READY]' : '[OFFLINE]'}
+                    {ready ? 'Online' : 'Offline'}
                   </span>
                 </div>
                 
-                <div className="mt-2 space-y-1.5">
-                  <span className="text-xs font-semibold text-fg block">
+                <div className="mt-3 relative z-10 space-y-2">
+                  <span className={cn(
+                    "text-sm font-bold block transition-colors duration-300",
+                    ready ? "text-slate-800 dark:text-slate-100" : "text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100"
+                  )}>
                     {label}
                   </span>
 
                   {ready ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[7px] font-mono text-primary/75">INF: 98.2ms</span>
-                      <span className="text-[7px] font-mono text-muted-foreground">|</span>
-                      <div className="flex-1 h-[2px] bg-border-strong overflow-hidden relative">
-                        <div className="absolute top-0 left-0 h-full w-[65%] bg-primary animate-pulse" />
+                    <div className="flex items-center">
+                      <div className="flex-1 h-1.5 rounded-full bg-purple-100 dark:bg-purple-950 overflow-hidden relative">
+                        <div className="absolute top-0 left-0 h-full w-[65%] bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse rounded-full shadow-[0_0_10px_rgba(236,72,153,0.5)]" />
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5 opacity-40">
-                      <span className="text-[7px] font-mono text-muted">SIG: INACTIVE</span>
-                      <span className="text-[7px] font-mono text-muted-foreground">|</span>
-                      <div className="flex-1 h-[2px] bg-border" />
+                    <div className="flex items-center">
+                      <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
+                        <div className="absolute top-0 left-0 h-full w-[30%] bg-slate-300 dark:bg-slate-700 rounded-full opacity-50 group-hover:w-[50%] transition-all duration-500" />
+                      </div>
                     </div>
                   )}
                 </div>

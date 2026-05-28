@@ -29,6 +29,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from ..config import get_settings
 from ..schemas import (
     ConflictResult,
     EvalResult,
@@ -132,8 +133,6 @@ ROUTER_SYSTEM_INSTRUCTION = (
     "and return a strict JSON classification. You never hold a conversation — you only classify."
 )
 
-ROUTER_MODEL = "gemini-2.5-flash"
-
 IMAGE_EXTS = {"png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "tif", "avif"}
 VIDEO_EXTS = {"mp4", "webm", "mov", "mkv", "avi", "m4v"}
 AUDIO_EXTS = {"wav", "mp3", "ogg", "m4a", "flac", "aac"}
@@ -209,6 +208,7 @@ class GeminiRouterAgent:
         """Decide media type + intended action for an incoming chat turn."""
         extension_hint = detect_media_type(filename) if filename else "none"
 
+        router_model = get_settings().router_model
         if not project_id:
             return RouterResult(
                 media_type=extension_hint if extension_hint != "none" else "text",
@@ -256,23 +256,17 @@ Return ONLY the JSON object, no markdown fences."""
             )
             response = call_gemini_with_retry(
                 client,
-                model=ROUTER_MODEL,
+                model=router_model,
                 contents=[prompt],
                 config=types.GenerateContentConfig(
                     system_instruction=ROUTER_SYSTEM_INSTRUCTION,
                     response_mime_type="application/json",
                 ),
             )
-            logger.info(
-                "[Router] Raw Gemini response:\n%s", response.text
-            )
+            logger.info("[Router] Raw Gemini response:\n%s", response.text)
             payload = json.loads(_strip_code_fences(response.text))
             logger.info(
                 "[Router] Parsed classification result:\n%s",
-                json.dumps(payload, indent=2),
-            )
-            logger.info(
-                "[router] raw classification payload:\n%s",
                 json.dumps(payload, indent=2, ensure_ascii=False),
             )
 
@@ -289,7 +283,7 @@ Return ONLY the JSON object, no markdown fences."""
                 media_type=media_type,
                 action=action,
                 reasoning=payload.get("reasoning", "") or "",
-                router=ROUTER_MODEL,
+                router=router_model,
             )
             logger.info(
                 "[router] final RouterResult:\n%s",
@@ -333,7 +327,7 @@ Return ONLY the JSON object, no markdown fences."""
             )
             response = call_gemini_with_retry(
                 client,
-                model="gemini-2.5-flash",
+                model=get_settings().greeting_model,
                 contents=[img, prompt],
                 config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION),
             )
@@ -449,7 +443,7 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
             logger.info("[EvalAgent] Sending evaluation prompt to Gemini.")
             response = call_gemini_with_retry(
                 client,
-                model="gemini-2.5-pro",
+                model=get_settings().eval_model,
                 contents=[img, prompt],
             )
             logger.info(
@@ -481,7 +475,7 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
         prompt = GeminiRouterAgent.build_eval_prompt(score, synthid, opencv)
         response = call_gemini_with_retry(
             client,
-            model="gemini-2.5-pro",
+            model=get_settings().eval_model,
             contents=[img, prompt],
             stream=True,
         )
@@ -498,13 +492,6 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
         appendix: Optional[str] = None,
     ) -> str:
         """Open-ended chat reply using the dual-POV system prompt."""
-        logger.info("[chat] incoming user_text: %s", user_text)
-        logger.info(
-            "[chat] incoming history (%d turns):\n%s",
-            len(history),
-            json.dumps(history, indent=2, ensure_ascii=False),
-        )
-
         fallback_base = user_text.strip() if user_text else "Hello!"
         fallback = (
             f"Thanks for the message — I'm the TruthLens chatbot. {fallback_base}"
@@ -527,16 +514,8 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
                 if text:
                     transcript_lines.append(f"{role_label}: {text}")
             transcript = "\n".join(transcript_lines) if transcript_lines else "(no prior turns)"
-            logger.info(
-                "[Chat] Incoming user message: %s", user_text
-            )
-            logger.info(
-                "[Chat] Conversation history (last 6 turns):\n%s", transcript
-            )
-
-            # The dual-POV persona lives entirely in SYSTEM_INSTRUCTION (passed via
-            # config below). The prompt itself only carries the conversation context
-            # so the model can decide which persona the latest turn calls for.
+            logger.info("[chat] user_text: %s", user_text)
+            logger.info("[chat] transcript (last 6 turns):\n%s", transcript)
             prompt = (
                 f"Recent conversation:\n{transcript}\n\n"
                 f"User: {user_text}\n\n"
@@ -552,10 +531,9 @@ DETECTION SCORE CONTEXT: {pct:.1f}%
 
             logger.info("[chat] prompt sent to Gemini:\n%s", prompt)
 
-            logger.info("[Chat] Sending conversational prompt to Gemini (gemini-2.5-pro).")
             response = call_gemini_with_retry(
                 client,
-                model="gemini-2.5-pro",
+                model=get_settings().eval_model,
                 contents=[prompt],
                 config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION),
             )

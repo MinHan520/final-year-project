@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from ..config import get_settings
 from ..schemas import ObjectClassificationResult
 from .gemini_router import call_gemini_with_retry, _strip_code_fences
 
@@ -70,7 +71,7 @@ class ObjectClassificationAgent:
 
             response = call_gemini_with_retry(
                 client,
-                model="gemini-2.5-flash",
+                model=get_settings().classification_model,
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=CLASSIFICATION_SYSTEM_INSTRUCTION,

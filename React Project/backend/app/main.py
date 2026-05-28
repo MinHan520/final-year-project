@@ -29,7 +29,11 @@ from .detector_loader import get_detector
 from .event_bus import get_bus
 from .storage import ScanStore
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    force=True,
+)
 logger = logging.getLogger(__name__)
 
 

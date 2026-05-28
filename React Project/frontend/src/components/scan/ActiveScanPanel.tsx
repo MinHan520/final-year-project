@@ -171,7 +171,7 @@ export function ActiveScanPanel({ scanId, onComplete }: ActiveScanPanelProps) {
           error={stages.synthid?.error}
         >
           {stages.synthid?.result && (
-            <div className="text-sm text-muted mt-2">
+            <div className="text-sm text-muted mt-2 space-y-1">
               <p>
                 Watermark Found:{' '}
                 <strong
@@ -184,6 +184,22 @@ export function ActiveScanPanel({ scanId, onComplete }: ActiveScanPanelProps) {
                   {stages.synthid.result.watermark_found ? 'Yes' : 'No'}
                 </strong>
               </p>
+              {stages.synthid.result.confidence != null && (
+                <p>
+                  AI Confidence:{' '}
+                  <strong
+                    className={
+                      stages.synthid.result.confidence >= 0.75
+                        ? 'text-danger'
+                        : stages.synthid.result.confidence >= 0.40
+                        ? 'text-warning'
+                        : 'text-success'
+                    }
+                  >
+                    {(stages.synthid.result.confidence * 100).toFixed(1)}%
+                  </strong>
+                </p>
+              )}
               {stages.synthid.result.reasoning && (
                 <p className="mt-1">{stages.synthid.result.reasoning}</p>
               )}
