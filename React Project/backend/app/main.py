@@ -23,6 +23,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import pillow_heif
+pillow_heif.register_heif_opener()
+
 from .api import routes_scan, routes_session, routes_chat
 from .config import get_settings
 from .detector_loader import get_detector

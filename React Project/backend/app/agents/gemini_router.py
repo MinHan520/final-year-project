@@ -133,7 +133,7 @@ ROUTER_SYSTEM_INSTRUCTION = (
     "and return a strict JSON classification. You never hold a conversation — you only classify."
 )
 
-IMAGE_EXTS = {"png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "tif", "avif"}
+IMAGE_EXTS = {"png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "tif", "avif", "heic", "heif"}
 VIDEO_EXTS = {"mp4", "webm", "mov", "mkv", "avi", "m4v"}
 AUDIO_EXTS = {"wav", "mp3", "ogg", "m4a", "flac", "aac"}
 TEXT_EXTS = {"txt", "pdf", "md", "csv", "log"}

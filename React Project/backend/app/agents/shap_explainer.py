@@ -29,7 +29,7 @@ class SHAPExplainerAgent:
     def explain(
         self,
         image_path: str | Path,
-        max_evals: int = 200,
+        max_evals: int = 50,
     ) -> SHAPResult:
         try:
             import shap

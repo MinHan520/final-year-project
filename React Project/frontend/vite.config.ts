@@ -16,7 +16,15 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: BACKEND, changeOrigin: true },
+      // SHAP can take 20-30 min on CPU — set a long timeout so the proxy
+      // doesn't drop the connection before the response arrives.
+      '/api/scan/': {
+        target: BACKEND,
+        changeOrigin: true,
+        timeout: 40 * 60 * 1000,        // 40 minutes
+        proxyTimeout: 40 * 60 * 1000,   // 40 minutes
+      },
+      '/api': { target: BACKEND, changeOrigin: true, timeout: 60_000, proxyTimeout: 60_000 },
       '/health': { target: BACKEND, changeOrigin: true },
     },
   },

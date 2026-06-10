@@ -3,6 +3,17 @@ import { useChatStore } from '../../stores/chat-store';
 import { MessageSquare, X, Send, Bot, User, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/** Renders markdown-style **bold** as <strong> elements. */
+function renderMarkdown(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*)/);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
 export function FloatingChatWidget() {
   const { isOpen, toggle, transcript, isSending, send, boundScanId, bindScan, clearHistory } = useChatStore();
   const [input, setInput] = useState('');
@@ -114,7 +125,7 @@ export function FloatingChatWidget() {
                     <span>TruthLens Assistant</span>
                   </div>
                   <div className="pl-3 border-l-2 border-primary text-sm text-fg whitespace-pre-wrap leading-relaxed font-sans py-0.5">
-                    {msg.text}
+                    {renderMarkdown(msg.text)}
                   </div>
                 </div>
               ) : (
@@ -124,7 +135,7 @@ export function FloatingChatWidget() {
                     <User className="size-3 text-muted-foreground" />
                   </div>
                   <div className="pr-3 border-r-2 border-pink-500/40 text-sm text-fg whitespace-pre-wrap leading-relaxed font-sans py-0.5">
-                    {msg.text}
+                    {renderMarkdown(msg.text)}
                   </div>
                 </div>
               )}
